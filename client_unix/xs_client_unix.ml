@@ -172,7 +172,7 @@ module Client = functor(IO: IO with type 'a t = 'a) -> struct
     queue_overflowed : bool ref;
     incoming_watches_m : Mutex.t;
     incoming_watches_c : Condition.t;
-      
+
     mutable extra_watch_callback: ((string * string) -> unit);
     m: Mutex.t;
   }
@@ -198,10 +198,10 @@ module Client = functor(IO: IO with type 'a t = 'a) -> struct
   let enqueue_watch t event =
     with_mutex t.incoming_watches_m
       (fun () ->
-	if Queue.length t.incoming_watches = 65536
-	then t.queue_overflowed := true
-	else Queue.push event t.incoming_watches;
-	Condition.signal t.incoming_watches_c
+        if Queue.length t.incoming_watches = 65536
+        then t.queue_overflowed := true
+        else Queue.push event t.incoming_watches;
+        Condition.signal t.incoming_watches_c
       )
 
   let rec dispatcher t =
@@ -212,7 +212,7 @@ module Client = functor(IO: IO with type 'a t = 'a) -> struct
           | Some [path; token] ->
             (* All 'extra' non-automatic watches are passed to the extra_watch_callback.
                Note this can include old watches which were still queued in
-			   the server when an 'unwatch' is received. *)
+               the server when an 'unwatch' is received. *)
             let w = with_mutex t.m (fun () -> find_opt t.watchevents token) in
             begin match w with
             | Some w -> Watcher.put w path
@@ -234,27 +234,27 @@ module Client = functor(IO: IO with type 'a t = 'a) -> struct
   let dequeue_watches t =
     while true do
       try 
-	let event = with_mutex t.incoming_watches_m
-	  (fun () ->
-	    while Queue.is_empty t.incoming_watches && not(!(t.queue_overflowed)) do
-	      Condition.wait t.incoming_watches_c t.incoming_watches_m
-	    done;
-	    if !(t.queue_overflowed) then begin
-	      raise Watch_overflow;
-	    end;
-	    Queue.pop t.incoming_watches
-	  ) in
-	let () = t.extra_watch_callback event in
-	()
+        let event = with_mutex t.incoming_watches_m
+          (fun () ->
+            while Queue.is_empty t.incoming_watches && not(!(t.queue_overflowed)) do
+              Condition.wait t.incoming_watches_c t.incoming_watches_m
+            done;
+            if !(t.queue_overflowed) then begin
+              raise Watch_overflow;
+            end;
+            Queue.pop t.incoming_watches
+          ) in
+        let () = t.extra_watch_callback event in
+        ()
       with 
-	| Watch_overflow as e ->
-	  error "Caught watch_overflow. Not retrying.";
-	  raise e
-	| e ->
-	  error "Caught '%s' while dequeuing watches. Ignoring.\n%!" (Printexc.to_string e);
+        | Watch_overflow as e ->
+          error "Caught watch_overflow. Not retrying.";
+          raise e
+        | e ->
+          error "Caught '%s' while dequeuing watches. Ignoring.\n%!" (Printexc.to_string e);
     done
-      
-	
+
+
 
   let make () =
     let transport = IO.create () in
@@ -284,15 +284,15 @@ module Client = functor(IO: IO with type 'a t = 'a) -> struct
   let set_watch_callback client cb = client.extra_watch_callback <- cb
 
   let make_rid =
-	  let counter = ref 0l in
-	  let m = Mutex.create () in
-	  fun () ->
-		  with_mutex m
-			  (fun () ->
-				  let result = !counter in
-				  counter := Int32.succ !counter;
-				  result
-			  )
+    let counter = ref 0l in
+    let m = Mutex.create () in
+    fun () ->
+      with_mutex m
+        (fun () ->
+          let result = !counter in
+          counter := Int32.succ !counter;
+          result
+        )
 
   let rpc hint h payload unmarshal =
     let open Xs_handle in
