@@ -47,6 +47,10 @@ type watch_callback = string * string -> unit
 (** Clients can opt to manage watches manually via this optional
     callback. *)
 
+type watch_overflow_callback_t = unit -> unit
+(** Clients can opt to respond to an overflow of the queue of watch events
+    that are handled by the watch_callback function. *)
+
 module Client : functor(IO: IO) -> sig
   type client
   (** A multiplexing xenstore client. *)
@@ -59,6 +63,9 @@ module Client : functor(IO: IO) -> sig
 
   val set_watch_callback : client -> watch_callback -> unit
   (** [set_watch_callback cb] registers a manual watch callback. *)
+
+  val set_watch_overflow_callback : client -> watch_overflow_callback_t -> unit
+  (** [set_watch_overflow_callback cb] registers a watch-overflow callback. *)
 
   type handle
   (** A handle represents a single thread's xenstore access. *)

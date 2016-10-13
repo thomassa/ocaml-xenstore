@@ -142,6 +142,7 @@ module Task = struct
 end
 
 type watch_callback = string * string -> unit
+type watch_overflow_callback_t = unit -> unit
 
 let auto_watch_prefix = "auto:"
 
@@ -168,12 +169,14 @@ module Client = functor(IO: IO with type 'a t = 'a) -> struct
 
     watchevents: (string, Watcher.t) Hashtbl.t;
 
+    (* This queue is really of events to send to the extra_watch_callback fn *)
     incoming_watches : (string * string) Queue.t;
     queue_overflowed : bool ref;
     incoming_watches_m : Mutex.t;
     incoming_watches_c : Condition.t;
 
     mutable extra_watch_callback: ((string * string) -> unit);
+    mutable watch_overflow_callback: watch_overflow_callback_t;
     m: Mutex.t;
   }
 
@@ -248,7 +251,8 @@ module Client = functor(IO: IO with type 'a t = 'a) -> struct
         ()
       with 
         | Watch_overflow as e ->
-          error "Caught watch_overflow. Not retrying.";
+          error "Caught watch_overflow. Not retrying, just calling callback.";
+          t.watch_overflow_callback ();
           raise e
         | e ->
           error "Caught '%s' while dequeuing watches. Ignoring.\n%!" (Printexc.to_string e);
@@ -275,6 +279,7 @@ module Client = functor(IO: IO with type 'a t = 'a) -> struct
       incoming_watches_c = Condition.create ();
 
       extra_watch_callback = (fun _ -> ());
+      watch_overflow_callback = (fun () -> ());
       m = Mutex.create ();
     } in
     t.dispatcher_thread <- Some (Thread.create dispatcher t);
@@ -282,6 +287,7 @@ module Client = functor(IO: IO with type 'a t = 'a) -> struct
     t
 
   let set_watch_callback client cb = client.extra_watch_callback <- cb
+  let set_watch_overflow_callback client cb = client.watch_overflow_callback <- cb
 
   let make_rid =
     let counter = ref 0l in
